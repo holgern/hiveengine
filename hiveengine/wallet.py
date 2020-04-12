@@ -107,7 +107,7 @@ class Wallet(list):
         tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[self.account])
         return tx
 
-    def stake(self, amount, symbol):
+    def stake(self, amount, symbol, receiver=None):
         """Stake a token.
 
             :param float amount: Amount to stake
@@ -133,7 +133,11 @@ class Wallet(list):
         quant_amount = token.quantize(amount)
         if quant_amount <= decimal.Decimal("0"):
             raise InvalidTokenAmount("Amount to stake is below token precision of %d" % token["precision"])
-        contract_payload = {"symbol":symbol.upper(),"quantity":str(quant_amount)}
+        if receiver is None:
+            receiver = self.account
+        else:
+            _ = Account(receiver, steem_instance=self.steem)
+        contract_payload = {"symbol":symbol.upper(),"to": receiver, "quantity":str(quant_amount)}
         json_data = {"contractName":"tokens","contractAction":"stake",
                      "contractPayload":contract_payload}
         assert self.steem.is_hive

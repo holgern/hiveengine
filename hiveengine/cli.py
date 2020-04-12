@@ -319,7 +319,7 @@ def unstake(amount, token, account):
 @cli.command()
 @click.argument('trx_id', nargs=1)
 @click.option('--account', '-a', help='Transfer from this account')
-def cancel_unstake(amount, trx_id):
+def cancel_unstake(account, trx_id):
     """unstake a token"""
     stm = shared_steem_instance()
     if stm.rpc is not None:
