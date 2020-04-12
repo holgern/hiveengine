@@ -1,0 +1,105 @@
+# Based on https://github.com/ogrisel/python-appveyor-demo/blob/master/appveyor.yml
+version: '{build}'
+
+environment:
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_compiler.cmd"
+
+  matrix:
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_ARCH: "64"
+      MINICONDA: C:\Miniconda36-x64
+      COMM_PY: "py36"
+
+      
+install:
+- ps: | # set env vars for versioning
+    $env:COMM_TAG = $(git describe --tags $(git rev-list --tags --max-count=1))
+    $env:COMM_COUNT = $(git rev-list --count HEAD)
+    $env:COMM_HASH = $env:APPVEYOR_REPO_COMMIT.Substring(0,8)
+    
+    if ($env:APPVEYOR_PULL_REQUEST_NUMBER) {
+        $env:BUILD = "hiveengine-{0}-{1}-{2}_win64.zip" -f $env:COMM_TAG, $env:COMM_HASH, $env:COMM_PY
+        $env:BUILD2 = "hiveengine-onefile-{0}-{1}-{2}_win64.zip" -f $env:COMM_TAG, $env:COMM_HASH, $env:COMM_PY
+        $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_HASH
+    }
+    else {
+        $env:BUILD = "hiveengine-{0}-{1}-{2}-{3}_win64.zip" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH, $env:COMM_PY
+        $env:BUILD2 = "hiveengine-onefile-{0}-{1}-{2}-{3}_win64.zip" -f $env:COMM_TAG, $env:COMM_COUNT, $env:COMM_HASH, $env:COMM_PY
+        $env:AVVER = "{0}-{1}" -f $env:COMM_TAG.TrimStart("v"), $env:COMM_COUNT
+    }
+
+- ps: | # used for experimental build warnings for pr builds
+    $env:BRANCH = "{0}/{1}/#{2}" -f $env:APPVEYOR_REPO_NAME, `
+      $env:APPVEYOR_REPO_BRANCH, $env:APPVEYOR_PULL_REQUEST_NUMBER
+    $env:BRANCH = $env:BRANCH -replace "/#$"
+
+#- set "PATH=%PYTHON%;%PYTHON%\\Scripts;%PYTHON%\\Tools\\Scripts;%PATH%"
+- cmd: set "PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
+#- set VCINSTALLDIR="C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
+- cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat"
+- cmd: set CL=-FI"%VCINSTALLDIR%\INCLUDE\stdint.h"
+- cmd: conda config --set always_yes yes --set changeps1 no
+- cmd: conda config --add channels conda-forge
+- cmd: conda config --add channels wheeler-microfluidics
+- cmd: conda update -q conda
+- cmd: conda info -a
+- cmd: conda install --yes conda-build setuptools pip parameterized cryptography
+- cmd: conda install --yes pycryptodomex pyyaml pytest pytest-mock coverage mock appdirs pylibscrypt
+- cmd: pip install scrypt -U
+- cmd: conda install --yes beem ecdsa requests future websocket-client pytz six Click events prettytable pyinstaller
+
+
+build_script:
+ # Build the compiled extension
+- cmd: python setup.py build
+- cmd: python setup.py install --user
+
+test_script:
+# Run the project tests
+- cmd: py.test tests
+
+after_test:
+ # If tests are successful, create binary packages for the project.
+- cmd: pyinstaller hiveengine-onedir.spec
+- cmd: pyinstaller hiveengine-onefile.spec
+
+# package artifacts
+- cmd: copy /Y C:\OpenSSL-v111-Win64\bin\libcrypto-1_1-x64.dll dist\hiveengine
+- cmd: copy /Y C:\OpenSSL-v111-Win64\bin\libssl-1_1-x64.dll dist\hiveengine
+- cmd: copy /Y C:\OpenSSL-Win64\bin\ssleay32.dll dist\hiveengine
+- cmd: copy /Y C:\OpenSSL-Win64\bin\libeay32.dll dist\hiveengine
+# - cmd: 7z a -­mx9 hiveengine.zip %APPVEYOR_BUILD_FOLDER%\dist\hiveengine
+#- ps: 7z a -m0=LZMA2 -mx9 $env:BUILD .\dist\hiveengine
+- ps: 7z a $env:BUILD .\dist\hiveengine
+- ps: 7z a $env:BUILD2 .\dist\hiveengine.exe
+
+- ps: | # generate sha256 hashes
+    (get-filehash $env:BUILD -algorithm SHA256).Hash | out-file ("{0}.sha256" -f $env:BUILD) -encoding ascii
+    type ("{0}.sha256" -f $env:BUILD)
+    (get-filehash $env:BUILD2 -algorithm SHA256).Hash | out-file ("{0}.sha256" -f $env:BUILD2) -encoding ascii
+    type ("{0}.sha256" -f $env:BUILD2)
+    
+#(get-filehash hiveengine.zip -algorithm SHA256).Hash | out-file "hiveengine.zip.sha256" -encoding ascii 
+
+artifacts:
+  # Archive the generated packages in the ci.appveyor.com build report.
+- path: $(BUILD)
+  name: hiveengine
+- path: $(BUILD).sha256
+  name: hiveengine sha256 hash
+- path: $(BUILD2)
+  name: hiveengine onefile
+- path: $(BUILD2).sha256
+  name: hiveengine onefile sha256 hash
+#- path: hiveengine.zip
+#  name: hiveengine_zip
+#- path: hiveengine.zip.sha256
+#  name: hiveengine_zip sha256 hash
+
+on_finish: 
+- ps: | # update appveyor build version, done last to prevent webhook breakage
+    update-appveyorbuild -version $env:AVVER
