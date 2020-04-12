@@ -40,8 +40,10 @@ except ImportError:
     KEYRING_AVAILABLE = False
 
 
-def unlock_wallet(stm, password=None):
+def unlock_wallet(stm, password=None, allow_wif=True):
     if stm.unsigned and stm.nobroadcast:
+        return True
+    if not stm.wallet.locked():
         return True
     password_storage = stm.config["password_storage"]
     if not password and KEYRING_AVAILABLE and password_storage == "keyring":
@@ -51,8 +53,22 @@ def unlock_wallet(stm, password=None):
     if bool(password):
         stm.wallet.unlock(password)
     else:
-        password = click.prompt("Password to unlock wallet", confirmation_prompt=False, hide_input=True)
-        stm.wallet.unlock(password)
+        if allow_wif:
+            password = click.prompt("Password to unlock wallet or posting/active wif", confirmation_prompt=False, hide_input=True)
+        else:
+            password = click.prompt("Password to unlock wallet", confirmation_prompt=False, hide_input=True)
+        try:
+            stm.wallet.unlock(password)
+        except:
+            try:
+                stm.wallet.setKeys([password])
+                print("Wif accepted!")
+                return True                
+            except:
+                if allow_wif:
+                    raise exceptions.WrongMasterPasswordException("entered password is not a valid password/wif")
+                else:
+                    raise exceptions.WrongMasterPasswordException("entered password is not a valid password")
 
     if stm.wallet.locked():
         if password_storage == "keyring" or password_storage == "environment":
@@ -68,6 +84,7 @@ def unlock_wallet(stm, password=None):
     else:
         print("Wallet Unlocked!")
         return True
+
 
 @shell(prompt='hiveengine> ', intro='Starting hiveengine... (use help to list all commands)', chain=True)
 # click.group(chain=True)
