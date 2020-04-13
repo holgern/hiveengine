@@ -138,7 +138,7 @@ class Market(list):
         if float(steem_balance) < float(amount):
             raise InsufficientTokenAmount("Only %.3f in wallet" % float(steem_balance))
         json_data = '{"id":"' + self.ssc_id + '","json":{"contractName":"hivepegged","contractAction":"buy","contractPayload":{}}}'
-        tx = acc.transfer("steem-peg", amount, "HIVE", memo=json_data)
+        tx = acc.transfer("honey-swap", amount, "HIVE", memo=json_data)
         return tx
 
     def buy(self, account, amount, symbol, price):

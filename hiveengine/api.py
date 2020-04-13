@@ -42,6 +42,14 @@ class Api(object):
         else:
             return ret
 
+    def get_status(self):
+        """gets the status of the sidechain"""
+        ret = self.rpc.getStatus(endpoint="blockchain")
+        if isinstance(ret, list) and len(ret) == 1:
+            return ret[0]
+        else:
+            return ret
+
     def get_block_info(self, blocknumber):
         """get the block with the specified block number of the sidechain"""
         ret = self.rpc.getBlockInfo({"blockNumber": blocknumber}, endpoint="blockchain")

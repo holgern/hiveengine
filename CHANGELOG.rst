@@ -1,3 +1,6 @@
+## 0.1.3
+* some bug-fixes
+
 ## 0.1.2
 * Fix stake and cancel unstake operation
 

@@ -121,12 +121,17 @@ def info(objects):
     if not objects:
         latest_block = api.get_latest_block_info()
         tokens = Tokens()
+        status = api.get_status()
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
         t.add_row(["latest block number", latest_block["blockNumber"]])
         t.add_row(["latest hive block", latest_block["refHiveBlockNumber"]])
         t.add_row(["latest timestamp", latest_block["timestamp"]])
+        t.add_row(["transactions", len(latest_block["transactions"])])
+        t.add_row(["virtualTransactions", len(latest_block["virtualTransactions"])])
         t.add_row(["Number of created tokens", len(tokens)])
+        t.add_row(["lastParsedHiveBlockNumber", status["lastParsedHiveBlockNumber"]])
+        t.add_row(["SSCnodeVersion", status["SSCnodeVersion"]])
         print(t.get_string())
     for obj in objects:
         if re.match("^[0-9-]*$", obj):
@@ -195,7 +200,7 @@ def info(objects):
                 t.add_row([token["_id"], token["symbol"], token["balance"], stake, pendingUnstake, token["delegationsIn"],
                            token["delegationsOut"], token["pendingUndelegations"]])
             print(t.get_string(sortby="id"))
-        elif len(obj) == 40:
+        elif len(obj.split("-")[0]) == 40:
             print("Transaction Id: %s" % obj)
             trx = api.get_transaction_info(obj)
             if trx is None:
@@ -281,18 +286,21 @@ def issue(to, amount, token, account):
 @cli.command()
 @click.argument('amount', nargs=1)
 @click.argument('token', nargs=1)
-@click.option('--account', '-a', help='Transfer from this account')
-def stake(amount, token, account):
+@click.option('--account', '-a', help='Take token from this account')
+@click.option('--receiver', '-r', help='Stake to this account (default is sender account)')
+def stake(amount, token, account, receiver):
     """stake a token"""
     stm = shared_steem_instance()
     if stm.rpc is not None:
         stm.rpc.rpcconnect()
     if not account:
         account = stm.config["default_account"]
+    if not receiver:
+        receiver = account
     if not unlock_wallet(stm):
         return
     wallet = Wallet(account, steem_instance=stm)
-    tx = wallet.stake(amount, token)
+    tx = wallet.stake(amount, token, receiver=receiver)
     tx = json.dumps(tx, indent=4)
     print(tx)
 
