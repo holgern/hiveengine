@@ -27,10 +27,10 @@ class Api(object):
 
     def get_history(self, account, symbol, limit=1000, offset=0):
         """"Get the transaction history for an account and a token"""
-        response = requests.get("https://history.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
+        response = requests.get("https://accounts.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
         cnt2 = 0
         while response.status_code != 200 and cnt2 < 10:
-            response = requests.get("https://history.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
+            response = requests.get("https://accounts.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
             cnt2 += 1
         return response.json()
 
