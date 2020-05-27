@@ -14,7 +14,7 @@ import decimal
 from hiveengine.api import Api
 from hiveengine.tokenobject import Token
 from hiveengine.exceptions import (TokenDoesNotExists, TokenNotInWallet, InsufficientTokenAmount, TokenIssueNotPermitted, MaxSupplyReached, InvalidTokenAmount)
-from beem.instance import shared_steem_instance
+from beem.instance import shared_blockchain_instance
 from beem.account import Account
 
 
@@ -22,7 +22,7 @@ class Wallet(list):
     """ Access the steem-engine wallet
 
         :param str account: Name of the account
-        :param Steem steem_instance: Steem
+        :param Hive blockchain_instance: Hive
                instance
                
         Wallet example:
@@ -34,14 +34,14 @@ class Wallet(list):
                 print(wallet)
 
     """
-    def __init__(self, account, api=None, steem_instance=None):
+    def __init__(self, account, api=None, blockchain_instance=None, steem_instance=None):
         if api is None:
             self.api = Api()
         else:
             self.api = api
         self.ssc_id = "ssc-mainnet-hive"
-        self.steem = steem_instance or shared_steem_instance()
-        check_account = Account(account, steem_instance=self.steem)
+        self.blockchain = blockchain_instance or steem_instance or shared_blockchain_instance()
+        check_account = Account(account, blockchain_instance=self.blockchain)
         self.account = check_account["name"]
         self.refresh()
 
@@ -59,7 +59,7 @@ class Wallet(list):
 
     def change_account(self, account):
         """Changes the wallet account"""
-        check_account = Account(account, steem_instance=self.steem)
+        check_account = Account(account, blockchain_instance=self.blockchain)
         self.account = check_account["name"]
         self.refresh()
 
@@ -87,7 +87,7 @@ class Wallet(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                wallet = Wallet("test", steem_instance=stm)
+                wallet = Wallet("test", blockchain_instance=stm)
                 wallet.transfer("test1", 1, "BEE", "test")
         """
         token_in_wallet = self.get_token(symbol)
@@ -99,12 +99,12 @@ class Wallet(list):
         quant_amount = token.quantize(amount)
         if quant_amount <= decimal.Decimal("0"):
             raise InvalidTokenAmount("Amount to transfer is below token precision of %d" % token["precision"])
-        check_to = Account(to, steem_instance=self.steem)
+        check_to = Account(to, blockchain_instance=self.blockchain)
         contract_payload = {"symbol":symbol.upper(),"to":to,"quantity":str(quant_amount),"memo":memo}
         json_data = {"contractName":"tokens","contractAction":"transfer",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[self.account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[self.account])
         return tx
 
     def stake(self, amount, symbol, receiver=None):
@@ -121,7 +121,7 @@ class Wallet(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                wallet = Wallet("test", steem_instance=stm)
+                wallet = Wallet("test", blockchain_instance=stm)
                 wallet.stake(1, "BEE")
         """
         token_in_wallet = self.get_token(symbol)
@@ -136,12 +136,12 @@ class Wallet(list):
         if receiver is None:
             receiver = self.account
         else:
-            _ = Account(receiver, steem_instance=self.steem)
+            _ = Account(receiver, blockchain_instance=self.blockchain)
         contract_payload = {"symbol":symbol.upper(),"to": receiver, "quantity":str(quant_amount)}
         json_data = {"contractName":"tokens","contractAction":"stake",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[self.account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[self.account])
         return tx
 
     def unstake(self, amount, symbol):
@@ -158,7 +158,7 @@ class Wallet(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                wallet = Wallet("test", steem_instance=stm)
+                wallet = Wallet("test", blockchain_instance=stm)
                 wallet.unstake(1, "BEE")
         """
         token_in_wallet = self.get_token(symbol)
@@ -175,8 +175,8 @@ class Wallet(list):
         contract_payload = {"symbol":symbol.upper(),"quantity":str(quant_amount)}
         json_data = {"contractName":"tokens","contractAction":"unstake",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[self.account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[self.account])
         return tx
 
     def cancel_unstake(self, trx_id):
@@ -192,14 +192,14 @@ class Wallet(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                wallet = Wallet("test", steem_instance=stm)
+                wallet = Wallet("test", blockchain_instance=stm)
                 wallet.stake("cf39ecb8b846f1efffb8db526fada21a5fcf41c3")
         """
         contract_payload = {"txID":trx_id}
         json_data = {"contractName":"tokens","contractAction":"cancelUnstake",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[self.account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[self.account])
         return tx
 
     def issue(self, to, amount, symbol):
@@ -218,7 +218,7 @@ class Wallet(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                wallet = Wallet("test", steem_instance=stm)
+                wallet = Wallet("test", blockchain_instance=stm)
                 wallet.issue(1, "my_token")
         """
         token = Token(symbol, api=self.api)
@@ -230,12 +230,12 @@ class Wallet(list):
         quant_amount = token.quantize(amount)
         if quant_amount <= decimal.Decimal("0"):
             raise InvalidTokenAmount("Amount to issue is below token precision of %d" % token["precision"])        
-        check_to = Account(to, steem_instance=self.steem)
+        check_to = Account(to, blockchain_instance=self.blockchain)
         contract_payload = {"symbol":symbol.upper(),"to":to,"quantity":str(quant_amount)}
         json_data = {"contractName":"tokens","contractAction":"issue",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[self.account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[self.account])
         return tx
 
     def get_history(self, symbol, limit=1000, offset=0):

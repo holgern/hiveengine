@@ -14,22 +14,22 @@ from hiveengine.tokens import Tokens
 from hiveengine.tokenobject import Token
 from hiveengine.wallet import Wallet
 from hiveengine.exceptions import (TokenDoesNotExists, TokenNotInWallet, InsufficientTokenAmount, InvalidTokenAmount)
-from beem.instance import shared_steem_instance
+from beem.instance import shared_blockchain_instance
 from beem.account import Account
 
 
 class Market(list):
     """ Access the hive-engine market
 
-        :param Steem steem_instance: Steem
+        :param Hive blockchain_instance: Hive
                instance
     """
-    def __init__(self, api=None, steem_instance=None):
+    def __init__(self, api=None, blockchain_instance=None, steem_instance=None):
         if api is None:
             self.api = Api()
         else:
             self.api = api        
-        self.steem = steem_instance or shared_steem_instance()
+        self.blockchain = blockchain_instance or steem_instance or shared_blockchain_instance()
         self.tokens = Tokens(api=self.api)
         self.ssc_id = "ssc-mainnet-hive"
         self.refresh()
@@ -96,10 +96,10 @@ class Market(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                market = Market(steem_instance=stm)
+                market = Market(blockchain_instance=stm)
                 market.withdraw("test", 1)
         """
-        wallet = Wallet(account, api=self.api, steem_instance=self.steem)
+        wallet = Wallet(account, api=self.api, blockchain_instance=self.blockchain)
         token_in_wallet = wallet.get_token("SWAP.HIVE")
         if token_in_wallet is None:
             raise TokenNotInWallet("%s is not in wallet." % "SWAP.HIVE")
@@ -112,8 +112,8 @@ class Market(list):
         contract_payload = {"quantity":str(quant_amount)}
         json_data = {"contractName":"hivepegged","contractAction":"withdraw",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[account])
         return tx
 
     def deposit(self, account, amount):
@@ -130,10 +130,10 @@ class Market(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                market = Market(steem_instance=stm)
+                market = Market(blockchain_instance=stm)
                 market.deposit("test", 1)
         """
-        acc = Account(account, steem_instance=self.steem)
+        acc = Account(account, blockchain_instance=self.blockchain)
         steem_balance = acc.get_balance("available", "HIVE")
         if float(steem_balance) < float(amount):
             raise InsufficientTokenAmount("Only %.3f in wallet" % float(steem_balance))
@@ -157,10 +157,10 @@ class Market(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                market = Market(steem_instance=stm)
+                market = Market(blockchain_instance=stm)
                 market.buy("test", 1, "BEE", 0.95)
         """
-        wallet = Wallet(account, api=self.api, steem_instance=self.steem)
+        wallet = Wallet(account, api=self.api, blockchain_instance=self.blockchain)
         token_in_wallet = wallet.get_token("SWAP.HIVE")
         if token_in_wallet is None:
             raise TokenNotInWallet("%s is not in wallet." % "SWAP.HIVE")
@@ -174,8 +174,8 @@ class Market(list):
         contract_payload = {"symbol": symbol.upper(), "quantity":str(quant_amount), "price": str(price)}
         json_data = {"contractName":"market","contractAction":"buy",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[account])
         return tx
 
     def sell(self, account, amount, symbol, price):
@@ -194,10 +194,10 @@ class Market(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                market = Market(steem_instance=stm)
+                market = Market(blockchain_instance=stm)
                 market.sell("test", 1, "BEE", 0.95)
         """
-        wallet = Wallet(account, api=self.api, steem_instance=self.steem)
+        wallet = Wallet(account, api=self.api, blockchain_instance=self.blockchain)
         token_in_wallet = wallet.get_token(symbol)
         if token_in_wallet is None:
             raise TokenNotInWallet("%s is not in wallet." % symbol)
@@ -211,8 +211,8 @@ class Market(list):
         contract_payload = {"symbol": symbol.upper(), "quantity":str(quant_amount), "price": str(price)}
         json_data = {"contractName":"market","contractAction":"sell",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[account])
         return tx
 
     def cancel(self, account, order_type, order_id):
@@ -230,13 +230,13 @@ class Market(list):
                 from beem import Steem
                 active_wif = "5xxxx"
                 stm = Steem(keys=[active_wif])
-                market = Market(steem_instance=stm)
+                market = Market(blockchain_instance=stm)
                 market.sell("test", "sell", 12)
         """
 
         contract_payload = {"type": order_type, "id": order_id}
         json_data = {"contractName":"market","contractAction":"cancel",
                      "contractPayload":contract_payload}
-        assert self.steem.is_hive
-        tx = self.steem.custom_json(self.ssc_id, json_data, required_auths=[account])
+        assert self.blockchain.is_hive
+        tx = self.blockchain.custom_json(self.ssc_id, json_data, required_auths=[account])
         return tx
