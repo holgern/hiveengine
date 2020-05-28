@@ -9,6 +9,7 @@ from beem.account import Account
 from beem.nodelist import NodeList
 from beem.utils import formatTimeString, addTzInfo
 from beem.blockchain import Blockchain
+from beem.exceptions import WrongMasterPasswordException
 from hiveengine.api import Api
 from hiveengine.tokens import Tokens
 from hiveengine.tokenobject import Token
@@ -66,9 +67,9 @@ def unlock_wallet(stm, password=None, allow_wif=True):
                 return True                
             except:
                 if allow_wif:
-                    raise exceptions.WrongMasterPasswordException("entered password is not a valid password/wif")
+                    raise WrongMasterPasswordException("entered password is not a valid password/wif")
                 else:
-                    raise exceptions.WrongMasterPasswordException("entered password is not a valid password")
+                    raise WrongMasterPasswordException("entered password is not a valid password")
 
     if stm.wallet.locked():
         if password_storage == "keyring" or password_storage == "environment":
@@ -746,9 +747,10 @@ def balance(account):
 
 @cli.command()
 @click.argument('order_type', nargs=1)
-@click.argument('order_id', nargs=1)
+@click.argument('order_id', nargs=1, required=False)
 @click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
-def cancel(order_type, order_id, account):
+@click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
+def cancel(order_type, order_id, account, yes):
     """Cancel a buy/sell order
     
         order_type is either sell or buy
@@ -764,13 +766,49 @@ def cancel(order_type, order_id, account):
     market = Market(blockchain_instance=stm)
     if not unlock_wallet(stm):
         return
+    if order_id is None and order_type == "buy":
+        wallet = Wallet(account, blockchain_instance=stm)
+        for t in wallet:
+            token = t["symbol"]
+            buy_book = market.get_buy_book(token, account)
+            sorted_buy_book = sorted(buy_book, key=lambda account: float(account["price"]), reverse=True)    
+            for order in sorted_buy_book:
+                print("Cancel sell order with id: %s for %.8f %s at %s" % (order["_id"], float(order["quantity"]), token, float(order["price"])))
+                if not yes:
+                    ret = input("continue [y/n]?")
+                    if ret not in ["y", "yes"]:
+                        continue            
+                tx = market.cancel(account, order_type, int(order_id))
+                tx = json.dumps(tx, indent=4)
+                print(tx)
+                if yes:
+                    time.sleep(4)
+        return
+    elif order_id is None and order_type == "sell":
+        wallet = Wallet(account, blockchain_instance=stm)
+        for t in wallet:
+            token = t["symbol"]
+            sell_book = market.get_sell_book(token, account)
+            sorted_sell_book = sorted(sell_book, key=lambda account: float(account["price"]), reverse=True)    
+            for order in sorted_sell_book:
+                print("Cancel sell order with id: %s for %.8f %s at %s" % (order["_id"], float(order["quantity"]), token, float(order["price"])))
+                if not yes:
+                    ret = input("continue [y/n]?")
+                    if ret not in ["y", "yes"]:
+                        continue            
+                tx = market.cancel(account, order_type, int(order_id))
+                tx = json.dumps(tx, indent=4)
+                print(tx)
+                if yes:
+                    time.sleep(4)                
+        return
     tx = market.cancel(account, order_type, int(order_id))
     tx = json.dumps(tx, indent=4)
     print(tx)
 
 
 @cli.command()
-@click.argument('token', nargs=1)
+@click.argument('token', nargs=1, required=False)
 @click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
 def buybook(token, account):
     """Returns the buy book for the given token
@@ -783,17 +821,31 @@ def buybook(token, account):
         print("Please set a Hive node")
         return
     market = Market(blockchain_instance=stm)
-    buy_book = market.get_buy_book(token, account)
-    sorted_buy_book = sorted(buy_book, key=lambda account: float(account["price"]), reverse=True)
-    t = PrettyTable(["order_id", "account", "quantity", "price"])
-    t.align = "l"
-    for order in sorted_buy_book:
-        t.add_row([order["_id"], order["account"], order["quantity"], order["price"]])
-    print(t.get_string())    
+    if token is None:
+        if account is None:
+            account = stm.config["default_account"]        
+        wallet = Wallet(account, blockchain_instance=stm)
+        table = PrettyTable(["token", "order_id", "account", "quantity", "price"])
+        table.align = "l"        
+        for t in wallet:
+            token = t["symbol"]
+            buy_book = market.get_buy_book(token, account)
+            sorted_buy_book = sorted(buy_book, key=lambda account: float(account["price"]), reverse=True)    
+            for order in sorted_buy_book:
+                table.add_row([token, order["_id"], order["account"], order["quantity"], order["price"]])   
+        print(table.get_string())   
+    else:
+        buy_book = market.get_buy_book(token, account)
+        sorted_buy_book = sorted(buy_book, key=lambda account: float(account["price"]), reverse=True)
+        t = PrettyTable(["order_id", "account", "quantity", "price"])
+        t.align = "l"
+        for order in sorted_buy_book:
+            t.add_row([order["_id"], order["account"], order["quantity"], order["price"]])
+        print(t.get_string())    
 
 
 @cli.command()
-@click.argument('token', nargs=1)
+@click.argument('token', nargs=1, required=False)
 @click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
 def sellbook(token, account):
     """Returns the sell book for the given token
@@ -805,13 +857,27 @@ def sellbook(token, account):
         print("Please set a Hive node")
         return
     market = Market(blockchain_instance=stm)
-    sell_book = market.get_sell_book(token, account)
-    sorted_sell_book = sorted(sell_book, key=lambda account: float(account["price"]), reverse=False)
-    t = PrettyTable(["order_id", "account", "quantity", "price"])
-    t.align = "l"
-    for order in sorted_sell_book:
-        t.add_row([order["_id"], order["account"], order["quantity"], order["price"]])
-    print(t.get_string())  
+    if token is None:
+        if account is None:
+            account = stm.config["default_account"]        
+        wallet = Wallet(account, blockchain_instance=stm)
+        table = PrettyTable(["token", "order_id", "account", "quantity", "price"])
+        table.align = "l"        
+        for t in wallet:
+            token = t["symbol"]
+            sell_book = market.get_sell_book(token, account)
+            sorted_sell_book = sorted(sell_book, key=lambda account: float(account["price"]), reverse=False)  
+            for order in sorted_sell_book:
+                table.add_row([token, order["_id"], order["account"], order["quantity"], order["price"]])   
+        print(table.get_string())   
+    else:    
+        sell_book = market.get_sell_book(token, account)
+        sorted_sell_book = sorted(sell_book, key=lambda account: float(account["price"]), reverse=False)
+        t = PrettyTable(["order_id", "account", "quantity", "price"])
+        t.align = "l"
+        for order in sorted_sell_book:
+            t.add_row([order["_id"], order["account"], order["quantity"], order["price"]])
+        print(t.get_string())  
 
 
 if __name__ == "__main__":

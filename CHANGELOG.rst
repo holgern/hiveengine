@@ -1,3 +1,7 @@
+## 0.1.5
+* allow to cancel all buy / sell orders at once
+* show all buy/sell order for an account
+
 ## 0.1.4
 * allow so transfer / stake / unstake / sell all tokens at once
 * When no amount is given by transfer / stake / unstake the token balance is used
