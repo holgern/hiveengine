@@ -1,3 +1,6 @@
+## 0.2.1
+* Fix nft_id list in nftbuy, nftcancel, nftchangeprice and nftsell
+
 ## 0.2.0
 * add NFT support (collection, nft, nftmarket, nfts)
 * add NFT related commands to cli (collection, nftbuy, nftcancel, nftchangeprice, nftlist, nftopen, nftparams, nftsell, nftsellbook, nfttrades)

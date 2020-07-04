@@ -1147,7 +1147,7 @@ def nftbuy(symbol, nft_ids, account, market_account, yes):
         ret = input("continue [y/n]?")
         if ret not in ["y", "yes"]:
             return
-    tx = market.buy(symbol, account, nft_ids, market_account)
+    tx = market.buy(symbol, account, list(nft_ids), market_account)
     tx = json.dumps(tx, indent=4)
     print(tx)
 
@@ -1161,8 +1161,7 @@ def nftbuy(symbol, nft_ids, account, market_account, yes):
 @click.option('--fee', '-f', help='Market fee 500 -> 5% (defaults is 500)', default=500)
 @click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
 def nftsell(symbol, nft_ids, price, price_symbol, account, fee, yes):
-    """Buy nfts from the market
-    
+    """Create a sell order on the market
     """
     stm = shared_blockchain_instance()
     if stm.rpc is not None:
@@ -1181,13 +1180,13 @@ def nftsell(symbol, nft_ids, price, price_symbol, account, fee, yes):
     for _id in nft_ids:
         obj = nft.get_id(int(_id))
         t.add_row([obj["_id"], obj["account"], obj["properties"]])
-    print("Sell the following nfts (buy is only sucesfully when wallet balance is sufficient):")
+    print("Create a sell order for the following nfts:")
     print(t)
     if not yes:
         ret = input("continue [y/n]?")
         if ret not in ["y", "yes"]:
             return
-    tx = market.sell(symbol, account, nft_ids, price, price_symbol, fee)
+    tx = market.sell(symbol, account, list(nft_ids), price, price_symbol, fee)
     tx = json.dumps(tx, indent=4)
     print(tx)    
 
@@ -1225,7 +1224,7 @@ def nftchangeprice(symbol, nft_ids, newprice, account, yes):
         ret = input("continue [y/n]?")
         if ret not in ["y", "yes"]:
             return
-    tx = market.change_price(symbol, account, nft_ids, newprice)
+    tx = market.change_price(symbol, account, list(nft_ids), newprice)
     tx = json.dumps(tx, indent=4)
     print(tx)    
 
@@ -1262,7 +1261,7 @@ def nftcancel(symbol, nft_ids, account, yes):
         ret = input("continue [y/n]?")
         if ret not in ["y", "yes"]:
             return
-    tx = market.cancel(symbol, account, nft_ids)
+    tx = market.cancel(symbol, account, list(nft_ids))
     tx = json.dumps(tx, indent=4)
     print(tx)
 

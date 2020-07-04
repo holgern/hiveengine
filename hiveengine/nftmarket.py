@@ -149,8 +149,9 @@ class NftMarket(list):
             nft_list = [str(nft_ids)]
         else:
             for n in nft_ids:
-                nft_list.append(str(n))   
-        contract_payload = {"symbol": symbol.upper(), "nfts":nft_list, "price": str(price), "priceSymbol": price_symbol.upper(), "fee": int(fee)}
+                nft_list.append(str(n))
+        contract_payload = {"symbol": symbol.upper(), "nfts": nft_list, "price": str(price),
+                            "priceSymbol": price_symbol.upper(), "fee": int(fee)}
         json_data = {"contractName":"nftmarket","contractAction":"sell",
                      "contractPayload":contract_payload}
         assert self.blockchain.is_hive
@@ -184,7 +185,7 @@ class NftMarket(list):
         else:
             for n in nft_ids:
                 nft_list.append(str(n))
-        contract_payload = {"symbol": symbol.upper(), "nfts":nft_list, "price": str(price)}
+        contract_payload = {"symbol": symbol.upper(), "nfts": nft_list, "price": str(price)}
         json_data = {"contractName":"nftmarket","contractAction":"changePrice",
                      "contractPayload":contract_payload}
         assert self.blockchain.is_hive
