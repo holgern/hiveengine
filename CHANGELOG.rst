@@ -1,3 +1,7 @@
+## 0.2.0
+* add NFT support (collection, nft, nftmarket, nfts)
+* add NFT related commands to cli (collection, nftbuy, nftcancel, nftchangeprice, nftlist, nftopen, nftparams, nftsell, nftsellbook, nfttrades)
+
 ## 0.1.5
 * allow to cancel all buy / sell orders at once
 * show all buy/sell order for an account

@@ -88,3 +88,18 @@ class Api(object):
         else:
             return ret
 
+    def find_all(self, contract_name, table_name, query = {}):
+        """Get an array of objects that match the query from the table of the specified contract"""
+        limit = 1000
+        offset = 0
+        last_result = []
+        cnt = 0
+        result = []
+        while last_result is not None and len(last_result) == limit or cnt == 0:
+            cnt += 1            
+            last_result = self.find(contract_name, table_name, query, limit=limit, offset=offset)
+            if last_result is not None:
+                result += last_result
+                offset += limit
+        return result
+

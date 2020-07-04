@@ -11,6 +11,12 @@ class TokenDoesNotExists(Exception):
     pass
 
 
+class NftDoesNotExists(Exception):
+    """ Nft does not (yet) exists
+    """
+    pass
+
+
 class TokenNotInWallet(Exception):
     """ The token is not in the account wallet
     """

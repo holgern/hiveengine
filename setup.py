@@ -16,7 +16,7 @@ except LookupError:
     ascii = codecs.lookup('ascii')
     codecs.register(lambda name, enc=ascii: {True: enc}.get(name == 'mbcs'))
 
-VERSION = '0.1.5'
+VERSION = '0.2.0'
 
 tests_require = ['mock >= 2.0.0', 'pytest', 'pytest-mock', 'parameterized']
 
@@ -56,10 +56,10 @@ if __name__ == '__main__':
         description='command line tool and python library for sending hive engine tokens',
         long_description=get_long_description(),
         author='Holger Nahrstaedt',
-        author_email='holgernahrstaedt@gmx.de',
+        author_email='nahrstaedt@gmail.com',
         maintainer='Holger Nahrstaedt',
-        maintainer_email='holgernahrstaedt@gmx.de',
-        keywords=['hive', 'tools'],
+        maintainer_email='nahrstaedt@gmail.com',
+        keywords=['hive', 'tools', 'nft'],
         packages=[
             "hiveengine",
         ],
@@ -67,11 +67,11 @@ if __name__ == '__main__':
             'License :: OSI Approved :: MIT License',
             'Operating System :: OS Independent',
             'Programming Language :: Python',
-            'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Development Status :: 4 - Beta',
             'Intended Audience :: Developers',
         ],

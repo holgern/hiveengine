@@ -14,7 +14,11 @@ from hiveengine.api import Api
 from hiveengine.tokens import Tokens
 from hiveengine.tokenobject import Token
 from hiveengine.market import Market
+from hiveengine.nftmarket import NftMarket
 from hiveengine.wallet import Wallet
+from hiveengine.nfts import Nfts
+from hiveengine.nft import Nft
+from hiveengine.collection import Collection
 from prettytable import PrettyTable
 import time
 import json
@@ -27,6 +31,7 @@ import io
 import argparse
 import re
 import six
+from datetime import datetime
 from beem.instance import set_shared_blockchain_instance, shared_blockchain_instance
 from hiveengine.version import version as __version__
 click.disable_unicode_literals_warning = True
@@ -128,6 +133,7 @@ def info(objects):
     if not objects:
         latest_block = api.get_latest_block_info()
         tokens = Tokens()
+        nfts = Nfts()
         status = api.get_status()
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
@@ -137,6 +143,7 @@ def info(objects):
         t.add_row(["transactions", len(latest_block["transactions"])])
         t.add_row(["virtualTransactions", len(latest_block["virtualTransactions"])])
         t.add_row(["Number of created tokens", len(tokens)])
+        t.add_row(["Number of created Nft symbols", len(nfts)])
         t.add_row(["lastParsedHiveBlockNumber", status["lastParsedHiveBlockNumber"]])
         t.add_row(["SSCnodeVersion", status["SSCnodeVersion"]])
         print(t.get_string())
@@ -160,32 +167,68 @@ def info(objects):
                 t.add_row(["transactionId", trx["transactionId"]])
                 print(t.get_string())
         elif re.match("^[A-Z0-9\-\._]{1,16}$", obj):
-            print("Token: %s" % obj)
+            
             tokens = Tokens()
+            nfts = Nfts()
             token = tokens.get_token(obj)
-            if token is None:
-                print("Could not found token %s" % obj)
+            nft = nfts.get_nft(obj)
+            if token is None and nft is None:
+                print("Could not found symbol %s" % obj)
                 return
-            t = PrettyTable(["Key", "Value"])
-            t.align = "l"
-            metadata = json.loads(token["metadata"])
-            for key in token:
-                if key == "metadata":
-                    if "url" in metadata:
-                        t.add_row(["metadata_url", metadata["url"]])
-                    if "icon" in metadata:
-                        t.add_row(["metadata_icon", metadata["icon"]])
-                    if "desc" in metadata:
-                        t.add_row(["metadata_desc", metadata["desc"]])            
-                else:
-                    t.add_row([key, token[key]])
-            market_info = token.get_market_info()
-            if market_info is not None:
-                for key in market_info:
-                    if key in ["_id", "symbol"]:
-                        continue
-                    t.add_row([key, market_info[key]])
-            print(t.get_string())
+            if token is not None:
+                t = PrettyTable(["Key", "Value"])
+                t.align = "l"
+                print("Token: %s" % obj)
+                metadata = json.loads(token["metadata"])
+                for key in token:
+                    if key == "metadata":
+                        if "url" in metadata:
+                            t.add_row(["metadata_url", metadata["url"]])
+                        if "icon" in metadata:
+                            t.add_row(["metadata_icon", metadata["icon"]])
+                        if "desc" in metadata:
+                            t.add_row(["metadata_desc", metadata["desc"]])            
+                    else:
+                        t.add_row([key, token[key]])
+                market_info = token.get_market_info()
+                if market_info is not None:
+                    for key in market_info:
+                        if key in ["_id", "symbol"]:
+                            continue
+                        t.add_row([key, market_info[key]])
+                print(t.get_string())
+            if nft is not None:
+                t = PrettyTable(["Key", "Value"])
+                t.align = "l"
+                print("NFT: %s" % obj)
+                metadata = json.loads(nft["metadata"])
+                properties = nft["properties"]
+                for key in nft:
+                    if key == "metadata":
+                        if "url" in metadata:
+                            t.add_row(["metadata_url", metadata["url"]])
+                        if "icon" in metadata:
+                            t.add_row(["metadata_icon", metadata["icon"]])
+                        if "desc" in metadata:
+                            t.add_row(["metadata_desc", metadata["desc"]])
+                    elif key == "properties":
+                        t.add_row([key, list(properties.keys())])
+                    else:
+                        t.add_row([key, nft[key]])
+              
+                market_info = nft.get_market_info()
+                if market_info is not None:
+                    for key in market_info:
+                        if key in ["_id", "symbol"]:
+                            continue
+                        t.add_row([key, market_info[key]])
+                print(t.get_string())
+                print("%s properties" % obj)
+                t = PrettyTable(["Property", "type", "isReadOnly", "authorizedEditingAccounts", "authorizedEditingContracts"])
+                t.align = "l"                
+                for prop in properties:
+                    t.add_row([prop, properties[prop]["type"], properties[prop]["isReadOnly"], properties[prop]["authorizedEditingAccounts"], properties[prop]["authorizedEditingContracts"]])                  
+                print(t)
         elif re.match("^[a-zA-Z0-9\-\._]{2,16}$", obj):
             print("Token Wallet: %s" % obj)
             if stm is None:
@@ -226,6 +269,65 @@ def info(objects):
             t.add_row(["sender", trx["sender"]])
             t.add_row(["transactionId", trx["transactionId"]])
             print(t.get_string())            
+
+@cli.command()
+def tokenlist():
+    """ Show list of all tokens
+
+    """
+    tokens = Tokens()
+    t = PrettyTable(["id", "Symbol", "name"])
+    t.align = "l"
+    for token in tokens:
+        t.add_row([token["_id"], token["symbol"], token["name"]])
+    print(t)
+
+
+@cli.command()
+def nftlist():
+    """ Show list of all NFTs
+
+    """
+    nfts = Nfts()
+    t = PrettyTable(["id", "Symbol", "Name"])
+    t.align = "l"
+    for nft in nfts:
+        t.add_row([nft["_id"], nft["symbol"], nft["name"]])
+    print(t)
+
+
+@cli.command()
+def nftparams():
+    """ Show params of all NFTs
+
+    """
+    nfts = Nfts()
+    t = PrettyTable(["key", "value"])
+    t.align = "l"
+    params = nfts.get_nft_params()
+    for key in params:
+        t.add_row([key, str(params[key])])
+    print(t)
+
+
+@cli.command()
+@click.argument('account', nargs=1)
+@click.argument('symbol', nargs=-1)
+def collection(account, symbol):
+    """Return NFT collection for an account"""
+    if len(symbol) == 0:
+        nfts = Nfts()
+        symbol = nfts.get_symbol_list()
+    collection = Collection(account)
+    for s in symbol:
+        if s not in collection:
+            continue
+        print("NFT: %s" % s)
+        t = PrettyTable(['_id', 'lockedTokens', 'properties'])
+        t.align = "l"        
+        for nft_object in collection[s]:
+            t.add_row([nft_object["_id"], nft_object["lockedTokens"], nft_object["properties"]])
+        print(t)
 
 
 @cli.command()
@@ -878,6 +980,292 @@ def sellbook(token, account):
         for order in sorted_sell_book:
             t.add_row([order["_id"], order["account"], order["quantity"], order["price"]])
         print(t.get_string())  
+
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
+@click.option('--grouping', '-g', help='Can be set to a grouping parameter, or to parameter.value')
+@click.option('--value', '-v', help='Set property value, can be used when grouping is set to a property parameter')
+@click.option('--price-symbol', '-s', help='Limit to this price symbol')
+@click.option('--nft-id', '-n', help='Limit to this nft id')
+@click.option('--limit', '-l', help='Limit to shown entries')
+def nftsellbook(symbol, account, grouping, value, price_symbol, nft_id, limit):
+    """Returns the sell book for the given symbol
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    market = NftMarket(blockchain_instance=stm)
+    nft = Nft(symbol)
+    grouping_name = None
+    grouping_value = None
+    if value is not None and grouping is not None:
+        grouping_name = grouping
+        grouping_value = value
+    elif grouping is not None and len(grouping.split(".")) >= 2:
+        grouping_name = grouping.split(".")[0]
+        grouping_value = grouping.split(".")[1]
+    sell_book = market.get_sell_book(symbol, account, grouping_name, grouping_value, price_symbol, nft_id)
+    new_sell_book = []
+    market_info = {}
+    for order in sell_book:
+        if order["priceSymbol"] != "SWAP.HIVE":
+            if order["priceSymbol"] not in market_info:
+                token = Token(order["priceSymbol"])
+                market_info[order["priceSymbol"]] = token.get_market_info()
+            hive_price = float(market_info[order["priceSymbol"]]["lastPrice"]) * float(order["price"])
+            order["hive_price"] = hive_price
+        else:
+            order["hive_price"] = float(order["price"])
+        new_sell_book.append(order)
+    
+    sorted_sell_book = sorted(new_sell_book, key=lambda account: float(account["hive_price"]), reverse=False)
+    if limit is not None:
+        sorted_sell_book = sorted_sell_book[:int(limit)]
+    t = PrettyTable(["nftId", "account", "name", "price", "priceSymbol", "fee", "est. HIVE"])
+    t.align = "l"
+    market_info = {}
+    for order in sorted_sell_book:
+        hive_price = round(float(order["hive_price"]), 3)
+        if grouping in nft.properties and value is None:
+            nftId = nft.get_id(int(order["nftId"]))
+            nft_name = nftId["properties"][grouping]
+            # print(nftId)
+        elif grouping in nft.properties and value is not None:
+            nft_name = value
+        elif grouping_value is not None:
+            nft_name = grouping_value        
+        else:
+            nft_name = ""
+        t.add_row([order["nftId"], order["account"], nft_name, order["price"], order["priceSymbol"], "%.2f %%" % (order["fee"]/100), hive_price])
+    print(t.get_string())  
+
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.option('--grouping', '-g', help='Can be set to a grouping parameter, or to parameter.value')
+@click.option('--value', '-v', help='Set property value, can be used when grouping is set to a property parameter')
+@click.option('--price-symbol', '-s', help='Limit to this price symbol')
+def nftopen(symbol, grouping, value, price_symbol):
+    """Returns the open interest book for the given symbol
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    market = NftMarket(blockchain_instance=stm)
+    nft = Nft(symbol)
+    grouping_name = None
+    grouping_value = None
+    if value is not None and grouping is not None:
+        grouping_name = grouping
+        grouping_value = value
+    elif grouping is not None and len(grouping.split(".")) >= 2:
+        grouping_name = grouping.split(".")[0]
+        grouping_value = grouping.split(".")[1]
+    open_interest = market.get_open_interest(symbol, "sell", grouping_name, grouping_value, price_symbol)
+
+    t = PrettyTable(["priceSymbol", "grouping", "count"])
+    t.align = "l"
+    for order in open_interest:
+        t.add_row([order["priceSymbol"], order["grouping"], order["count"]])
+    print(t.get_string())
+
+@cli.command()
+@click.argument('symbol', nargs=1, required=False)
+@click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
+@click.option('--properties', '-p', help='Set property, must be one of the properties of the nft')
+def nfttrades(symbol, account, properties):
+    """Returns the trades history
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    market = NftMarket(blockchain_instance=stm)
+    nft = Nft(symbol)
+    trades_history = market.get_trades_history(symbol, account)
+    new_trades_history = []
+    market_info = {}
+    for order in trades_history:
+        if order["priceSymbol"] != "SWAP.HIVE":
+            if order["priceSymbol"] not in market_info:
+                token = Token(order["priceSymbol"])
+                market_info[order["priceSymbol"]] = token.get_market_info()
+            hive_price = float(market_info[order["priceSymbol"]]["lastPrice"]) * float(order["price"])
+            order["hive_price"] = hive_price
+        else:
+            order["hive_price"] = float(order["price"])
+        new_trades_history.append(order)
+        
+    t = PrettyTable(["order_id", "date", "type", "account", "price", "priceSymbol", "est. HIVE"])
+    t.align = "l"
+    for order in new_trades_history:
+        hive_price = round(float(order["hive_price"]), 3)
+        date = datetime.fromtimestamp(order["timestamp"])
+        t.add_row([order["_id"], date, order["type"], order["account"], order["price"], order["priceSymbol"], hive_price])
+    print(t.get_string())  
+
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.argument('nft_ids', nargs=-1)
+@click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
+@click.option('--market_account', '-m', help='BMarket account which will receive the fee (defaults to "nftmarket")', default="nftmarket")
+@click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
+def nftbuy(symbol, nft_ids, account, market_account, yes):
+    """Buy nfts from the market
+    
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    if account is None:
+        account = stm.config["default_account"]
+    market = NftMarket(blockchain_instance=stm)
+    if not unlock_wallet(stm):
+        return
+    t = PrettyTable(["nftId", "previousAccount", "properties"])
+    t.align = "l"
+    nft = Nft(symbol)
+    for _id in nft_ids:
+        obj = nft.get_id(int(_id))
+        t.add_row([obj["_id"], obj["previousAccount"], obj["properties"]])
+    print("Buy the following nfts (buy is only sucesfully when wallet balance is sufficient):")
+    print(t)
+    if not yes:
+        ret = input("continue [y/n]?")
+        if ret not in ["y", "yes"]:
+            return
+    tx = market.buy(symbol, account, nft_ids, market_account)
+    tx = json.dumps(tx, indent=4)
+    print(tx)
+
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.argument('nft_ids', nargs=-1)
+@click.argument('price', nargs=1)
+@click.argument('price_symbol', nargs=1)
+@click.option('--account', '-a', help='Buy with this account (uses the beem default account when not set)')
+@click.option('--fee', '-f', help='Market fee 500 -> 5% (defaults is 500)', default=500)
+@click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
+def nftsell(symbol, nft_ids, price, price_symbol, account, fee, yes):
+    """Buy nfts from the market
+    
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    if account is None:
+        account = stm.config["default_account"]
+    market = NftMarket(blockchain_instance=stm)
+    if not unlock_wallet(stm):
+        return
+    t = PrettyTable(["nftId", "account", "properties"])
+    t.align = "l"
+    nft = Nft(symbol)
+    for _id in nft_ids:
+        obj = nft.get_id(int(_id))
+        t.add_row([obj["_id"], obj["account"], obj["properties"]])
+    print("Sell the following nfts (buy is only sucesfully when wallet balance is sufficient):")
+    print(t)
+    if not yes:
+        ret = input("continue [y/n]?")
+        if ret not in ["y", "yes"]:
+            return
+    tx = market.sell(symbol, account, nft_ids, price, price_symbol, fee)
+    tx = json.dumps(tx, indent=4)
+    print(tx)    
+
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.argument('nft_ids', nargs=-1)
+@click.argument('newprice', nargs=1)
+@click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
+@click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
+def nftchangeprice(symbol, nft_ids, newprice, account, yes):
+    """Cancel a nft sell order
+    
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    if account is None:
+        account = stm.config["default_account"]
+    market = NftMarket(blockchain_instance=stm)
+    if not unlock_wallet(stm):
+        return
+    t = PrettyTable(["nftId", "previousAccount", "properties"])
+    t.align = "l"
+    nft = Nft(symbol)
+    for _id in nft_ids:
+        obj = nft.get_id(int(_id))
+        t.add_row([obj["_id"], obj["previousAccount"], obj["properties"]])
+    print("Change price of following nfts to %s:" % newprice)
+    print(t)
+    if not yes:
+        ret = input("continue [y/n]?")
+        if ret not in ["y", "yes"]:
+            return
+    tx = market.change_price(symbol, account, nft_ids, newprice)
+    tx = json.dumps(tx, indent=4)
+    print(tx)    
+
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.argument('nft_ids', nargs=-1)
+@click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
+@click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
+def nftcancel(symbol, nft_ids, account, yes):
+    """Cancel a nft sell order
+    
+    """
+    stm = shared_blockchain_instance()
+    if stm.rpc is not None:
+        stm.rpc.rpcconnect()
+    if not stm.is_hive:
+        print("Please set a Hive node")
+        return
+    if account is None:
+        account = stm.config["default_account"]
+    market = NftMarket(blockchain_instance=stm)
+    if not unlock_wallet(stm):
+        return
+    t = PrettyTable(["nftId", "previousAccount", "properties"])
+    t.align = "l"
+    nft = Nft(symbol)
+    for _id in nft_ids:
+        obj = nft.get_id(int(_id))
+        t.add_row([obj["_id"], obj["previousAccount"], obj["properties"]])
+    print("Canceling selling of following nfts:")
+    print(t)
+    if not yes:
+        ret = input("continue [y/n]?")
+        if ret not in ["y", "yes"]:
+            return
+    tx = market.cancel(symbol, account, nft_ids)
+    tx = json.dumps(tx, indent=4)
+    print(tx)
 
 
 if __name__ == "__main__":

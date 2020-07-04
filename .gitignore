@@ -54,6 +54,9 @@ coverage.xml
 *.mo
 *.pot
 
+*.wpr
+*.wpu
+
 # Django stuff:
 *.log
 local_settings.py

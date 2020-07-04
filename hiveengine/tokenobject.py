@@ -8,7 +8,7 @@ import decimal
 
 
 class Token(dict):
-    """ steem-engine token dict
+    """ hive-engine token dict
 
         :param str token: Name of the token
     """
@@ -55,7 +55,7 @@ class Token(dict):
         if len(metrics) > 0:
             return metrics[0]
         else:
-            return metrics        
+            return metrics
 
     def get_buy_book(self, limit=100, offset=0):
         """Returns the buy book"""

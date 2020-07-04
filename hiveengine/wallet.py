@@ -19,7 +19,7 @@ from beem.account import Account
 
 
 class Wallet(list):
-    """ Access the steem-engine wallet
+    """ Access the hive-engine wallet
 
         :param str account: Name of the account
         :param Hive blockchain_instance: Hive
