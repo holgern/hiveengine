@@ -1080,8 +1080,7 @@ def nftopen(symbol, grouping, value, price_symbol):
 @cli.command()
 @click.argument('symbol', nargs=1, required=False)
 @click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
-@click.option('--properties', '-p', help='Set property, must be one of the properties of the nft')
-def nfttrades(symbol, account, properties):
+def nfttrades(symbol, account):
     """Returns the trades history
     """
     stm = shared_blockchain_instance()
