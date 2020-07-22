@@ -7,7 +7,6 @@ hiveengine Modules
 .. toctree::
 
    hiveengine.api
-   hiveengine.cli
    hiveengine.collection
    hiveengine.exceptions
    hiveengine.market
