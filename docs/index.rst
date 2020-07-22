@@ -8,6 +8,7 @@ General
 
    installation
    quickstart
+   cli
    tutorials
    configuration
    modules

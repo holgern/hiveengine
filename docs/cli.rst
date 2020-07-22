@@ -5,5 +5,5 @@ Commands
 --------
 
 .. click:: hiveengine.cli:cli
-    :prog: beempy
+    :prog: hiveengine
     :show-nested:
