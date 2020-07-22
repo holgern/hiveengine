@@ -51,8 +51,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'hiveengine'
-copyright = '2017, ChainSquad GmbH, 2018-2020, Holger Nahrstaedt'
-author = 'Holger Nahrstaedt'
+copyright = '2018-2020, holger80'
+author = 'holger80'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -272,7 +272,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   (master_doc, 'hiveengine', 'hiveengine Documentation',
-   author, 'hiveengine', 'python library for steem',
+   author, 'hiveengine', 'python library for hive-engine',
    'Miscellaneous'),
 ]
 
