@@ -86,7 +86,18 @@ class NftMarket(list):
         if timestamp is not None:
             query["timestamp"] = timestamp
         trades_history = nft.get_trade_history(query=query, limit=-1)
-        return trades_history
+        new_trades_history = []
+        last_id = None
+        for trade in trades_history[::-1]:
+            if last_id is None:
+                last_id = trade["_id"]
+            elif last_id != trade["_id"] + 1:
+                continue
+            else:
+                last_id = trade["_id"]
+            new_trades_history.append(trade)
+            
+        return new_trades_history[::-1]
 
     def buy(self, symbol, account, nft_ids, market_account):
         """Buy nfts for given price.

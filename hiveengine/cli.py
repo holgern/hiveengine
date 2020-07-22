@@ -216,12 +216,6 @@ def info(objects):
                     else:
                         t.add_row([key, nft[key]])
               
-                market_info = nft.get_market_info()
-                if market_info is not None:
-                    for key in market_info:
-                        if key in ["_id", "symbol"]:
-                            continue
-                        t.add_row([key, market_info[key]])
                 print(t.get_string())
                 print("%s properties" % obj)
                 t = PrettyTable(["Property", "type", "isReadOnly", "authorizedEditingAccounts", "authorizedEditingContracts"])
@@ -313,7 +307,8 @@ def nftparams():
 @cli.command()
 @click.argument('account', nargs=1)
 @click.argument('symbol', nargs=-1)
-def collection(account, symbol):
+@click.option('--sort-by-id', '-s', is_flag=True, default=False, help="Sort NFTs by their ID")
+def collection(account, symbol, sort_by_id):
     """Return NFT collection for an account"""
     if len(symbol) == 0:
         nfts = Nfts()
@@ -322,11 +317,119 @@ def collection(account, symbol):
     for s in symbol:
         if s not in collection:
             continue
+        nft = Nft(s)
+        groupBy = nft["groupBy"]
+        
         print("NFT: %s" % s)
-        t = PrettyTable(['_id', 'lockedTokens', 'properties'])
+        if sort_by_id:
+            table_header = ['_id', 'lockedTokens']
+            for prop in nft.properties[:3]:
+                table_header.append(prop)
+            t = PrettyTable(table_header)
+            t.align = "l"        
+            for nft_object in collection[s]:
+                row = [nft_object["_id"], nft_object["lockedTokens"]]
+                for prop in nft.properties[:3]:
+                    if prop in nft_object["properties"]:
+                        row.append(nft_object["properties"][prop])
+                    else:
+                        row.append("")
+                t.add_row(row)
+            print(t)
+        else:
+            nft_id_by_prop = {}
+            nft_prop = {}
+    
+            for nft_obj in collection[s]:
+                ident = ""
+                for g in groupBy:
+                    if g in nft_obj["properties"] and nft_obj["properties"][g] is not None:
+                        ident += nft_obj["properties"][g].lower() + " - "
+                if ident[:-3] in nft_id_by_prop:
+                    nft_id_by_prop[ident[:-3]].append(str(nft_obj["_id"]))
+                else:
+                    nft_id_by_prop[ident[:-3]] = [str(nft_obj["_id"])]     
+                    nft_prop[ident[:-3]] = nft_obj["properties"]
+            table_header = ['nftIds']
+            
+            for prop in nft.properties[:3]:
+                table_header.append(prop)            
+            t = PrettyTable(table_header)
+            t.align = "l"
+            t._max_width = {"nftIds": 60}
+            for key in nft_id_by_prop:
+                row = [" ".join(nft_id_by_prop[key])]
+                for prop in nft.properties[:3]:
+                    if prop in nft_prop[key]:
+                        row.append(nft_prop[key][prop])
+                    else:
+                        row.append("")
+                t.add_row(row)
+            print(t)
+
+@cli.command()
+@click.argument('symbol', nargs=-1)
+def nftinfo(symbol):
+    """Returns information about an NFT symbol"""
+    if len(symbol) == 0:
+        nfts = Nfts()
+        symbol = nfts.get_symbol_list()
+    for s in symbol:
+        nft = Nft(s)
+        print("NFT: %s" % s)
+        t = PrettyTable(["key", "value"])
+        t._max_width = {"value": 60}
         t.align = "l"        
-        for nft_object in collection[s]:
-            t.add_row([nft_object["_id"], nft_object["lockedTokens"], nft_object["properties"]])
+        for key in list(nft.keys()):
+            if key != "properties":
+                t.add_row([key, nft[key]])
+            else:
+                t.add_row([key, nft.properties])
+        print(t)
+        t = PrettyTable(["property", "type", "isReadOnly", "authorizedEditingAccounts", "authorizedEditingContracts"])
+        t._max_width = {"value": 60}
+        t.align = "l"
+        for prop in nft.properties:
+            value = [prop]
+            for p_key in nft["properties"][prop]:
+                value.append(nft["properties"][prop][p_key])
+            t.add_row(value)
+        print(t)
+
+@cli.command()
+@click.argument('symbol', nargs=1)
+@click.argument('nftid', nargs=-1)
+def nft(symbol, nftid):
+    """Returns information about an NFT ID"""
+    nft = Nft(symbol)
+    if len(nftid) == 0:
+        groupBy = nft["groupBy"]
+        max_id = nft["supply"]
+        nft_count = {}
+        
+        for _id in range(max_id):
+            nft_obj = nft.get_id(int(_id) + 1)
+            ident = ""
+            for g in groupBy:
+                if g in nft_obj["properties"] and nft_obj["properties"][g] is not None:
+                    ident += nft_obj["properties"][g].lower() + " - "
+            if ident[:-3] in nft_count:
+                nft_count[ident[:-3]] += 1
+            else:
+                nft_count[ident[:-3]] = 1
+        t = PrettyTable(["type", "N", "percentage"])
+        t.align = "l"
+        for key in nft_count:
+            t.add_row([key, nft_count[key], round(nft_count[key]/max_id*100, 2)])
+        print(t)
+            
+    else:
+        t = PrettyTable(["_id", "account", "ownedBy", "lockedTokens", "properties"])
+        t._max_width = {"properties": 60}
+        t.align = "l"    
+        for _id in nftid:
+            nft_obj = nft.get_id(int(_id))
+            t.add_row([_id, nft_obj["account"], nft_obj["ownedBy"], nft_obj["lockedTokens"], nft_obj["properties"]])
         print(t)
 
 
@@ -989,8 +1092,11 @@ def sellbook(token, account):
 @click.option('--value', '-v', help='Set property value, can be used when grouping is set to a property parameter')
 @click.option('--price-symbol', '-s', help='Limit to this price symbol')
 @click.option('--nft-id', '-n', help='Limit to this nft id')
+@click.option('--cheapest-only', '-c', help='Show only the cheapest open sell for each type', is_flag=True, default=False)
+@click.option('--min-hive', '-m', help='Show only NFT which have a higher price')
 @click.option('--limit', '-l', help='Limit to shown entries')
-def nftsellbook(symbol, account, grouping, value, price_symbol, nft_id, limit):
+@click.option('--interactive', '-i', help='Show only the cheapest open sell for each type', is_flag=True, default=False)
+def nftsellbook(symbol, account, grouping, value, price_symbol, nft_id, cheapest_only, min_hive, limit, interactive):
     """Returns the sell book for the given symbol
     """
     stm = shared_blockchain_instance()
@@ -1012,6 +1118,7 @@ def nftsellbook(symbol, account, grouping, value, price_symbol, nft_id, limit):
     sell_book = market.get_sell_book(symbol, account, grouping_name, grouping_value, price_symbol, nft_id)
     new_sell_book = []
     market_info = {}
+    
     for order in sell_book:
         if order["priceSymbol"] != "SWAP.HIVE":
             if order["priceSymbol"] not in market_info:
@@ -1021,14 +1128,21 @@ def nftsellbook(symbol, account, grouping, value, price_symbol, nft_id, limit):
             order["hive_price"] = hive_price
         else:
             order["hive_price"] = float(order["price"])
+        if min_hive is not None and order["hive_price"] < float(min_hive):
+            continue            
         new_sell_book.append(order)
-    
     sorted_sell_book = sorted(new_sell_book, key=lambda account: float(account["hive_price"]), reverse=False)
     if limit is not None:
         sorted_sell_book = sorted_sell_book[:int(limit)]
-    t = PrettyTable(["nftId", "account", "name", "price", "priceSymbol", "fee", "est. HIVE"])
+    name_str = ""
+    for g in nft["groupBy"]:
+        name_str += g + " - "    
+    t = PrettyTable(["nftId", "account", name_str[:-3], "price", "priceSymbol", "fee", "est. HIVE"])
     t.align = "l"
+    t._max_width = {name_str[:-3] : 40}
     market_info = {}
+    cheapest_list = []
+    nft_ids = []
     for order in sorted_sell_book:
         hive_price = round(float(order["hive_price"]), 3)
         if grouping in nft.properties and value is None:
@@ -1040,9 +1154,43 @@ def nftsellbook(symbol, account, grouping, value, price_symbol, nft_id, limit):
         elif grouping_value is not None:
             nft_name = grouping_value        
         else:
+            nftId = nft.get_id(int(order["nftId"]))
             nft_name = ""
+            for g in nft["groupBy"]:
+                if g in nftId["properties"]:
+                    nft_name += nftId["properties"][g] + " - "
+            if len(nft_name) > 0:
+                nft_name = nft_name[:-3]
+        if cheapest_only:
+            if nft_name in cheapest_list:
+                continue
+            cheapest_list.append(nft_name)
+        nft_ids.append(order["nftId"])
         t.add_row([order["nftId"], order["account"], nft_name, order["price"], order["priceSymbol"], "%.2f %%" % (order["fee"]/100), hive_price])
-    print(t.get_string())  
+    print(t.get_string()) 
+    if interactive:
+        ret = None
+        while ret not in ["b", "c", "p", "a", "buy", "cancel", "change price", "about"]:
+            ret = input("Do the following: buy[b], cancel[c], change price[p] or abort[a]? ")
+        if ret in ["a", "abort"]:
+            return
+        account = input("Enter account name: ")
+        market = NftMarket(blockchain_instance=stm)
+        if not unlock_wallet(stm):
+            return        
+        if ret in ["p", "change price"]:
+            newprice = input("Enter new price: ")
+            tx = market.change_price(symbol, account, list(nft_ids), newprice)
+            tx = json.dumps(tx, indent=4)
+            print(tx)
+        elif ret in ["c", "cancel"]:
+            tx = market.cancel(symbol, account, list(nft_ids))
+            tx = json.dumps(tx, indent=4)
+            print(tx)
+        elif ret in ["b", "buy"]:
+            tx = market.buy(symbol, account, list(nft_ids), "nftmarket")
+            tx = json.dumps(tx, indent=4)
+            print(tx)
 
 
 @cli.command()
@@ -1090,35 +1238,78 @@ def nfttrades(symbol, account):
         print("Please set a Hive node")
         return
     market = NftMarket(blockchain_instance=stm)
-    nft = Nft(symbol)
-    trades_history = market.get_trades_history(symbol, account)
-    new_trades_history = []
-    market_info = {}
-    for order in trades_history:
-        if order["priceSymbol"] != "SWAP.HIVE":
-            if order["priceSymbol"] not in market_info:
-                token = Token(order["priceSymbol"])
-                market_info[order["priceSymbol"]] = token.get_market_info()
-            hive_price = float(market_info[order["priceSymbol"]]["lastPrice"]) * float(order["price"])
-            order["hive_price"] = hive_price
-        else:
-            order["hive_price"] = float(order["price"])
-        new_trades_history.append(order)
+    if symbol is not None:
         
-    t = PrettyTable(["order_id", "date", "type", "account", "price", "priceSymbol", "est. HIVE"])
-    t.align = "l"
-    for order in new_trades_history:
-        hive_price = round(float(order["hive_price"]), 3)
-        date = datetime.fromtimestamp(order["timestamp"])
-        t.add_row([order["_id"], date, order["type"], order["account"], order["price"], order["priceSymbol"], hive_price])
-    print(t.get_string())  
+        nft = Nft(symbol)
+        trades_history = market.get_trades_history(symbol, account)
+        new_trades_history = []
+        market_info = {}
+        for order in trades_history:
+            if order["priceSymbol"] != "SWAP.HIVE":
+                if order["priceSymbol"] not in market_info:
+                    token = Token(order["priceSymbol"])
+                    market_info[order["priceSymbol"]] = token.get_market_info()
+                hive_price = float(market_info[order["priceSymbol"]]["lastPrice"]) * float(order["price"])
+                order["hive_price"] = hive_price
+            else:
+                order["hive_price"] = float(order["price"])
+            new_trades_history.append(order)
+            
+        t = PrettyTable(["date", "account", "from", "Nfts", "price", "priceSymbol", "est. HIVE"])
+        t.align = "l"
+        t._max_width = {"from": 16, "Nfts": 20}
+        row_sum = ["Sum: ", "", "", 0, "", "", 0]
+        for order in new_trades_history:
+            hive_price = round(float(order["hive_price"]), 3)
+            date = datetime.fromtimestamp(order["timestamp"])
+            seller = []
+            nfts = []
+            for s in order["counterparties"]:
+                seller.append(s["account"])
+                for n in s["nftIds"]:
+                    nfts.append(n)
+                    row_sum[3] += 1
+            row_sum[6] += hive_price
+            t.add_row([date, order["account"], ','.join(seller), ','.join(nfts), order["price"], order["priceSymbol"], hive_price])
+        print(t.get_string())
+        print("%d Nfts were sold for %.3f HIVE in the last 24 h" % (row_sum[3], row_sum[6]))
+    else:
+        nfts = Nfts()
+        symbol = nfts.get_symbol_list()
+        market_info = {}
+        t = PrettyTable(["Symbol", "Sold NFTs", "est. HIVE sum"])
+        t.align = "l"        
+        for s in symbol:
+            nft = Nft(s)
+            trades_history = market.get_trades_history(s, account)
+            new_trades_history = []
+            hive_sum = 0
+            nft_sum = 0
+            for order in trades_history:
+                if order["priceSymbol"] != "SWAP.HIVE":
+                    if order["priceSymbol"] not in market_info:
+                        token = Token(order["priceSymbol"])
+                        market_info[order["priceSymbol"]] = token.get_market_info()
+                    hive_price = float(market_info[order["priceSymbol"]]["lastPrice"]) * float(order["price"])
+                    order["hive_price"] = hive_price
+                else:
+                    order["hive_price"] = float(order["price"])
+                new_trades_history.append(order)
+            for order in new_trades_history:
+                hive_price = round(float(order["hive_price"]), 3)
+                hive_sum += hive_price
+                for c in order["counterparties"]:
+                    for n in c["nftIds"]:
+                        nft_sum += 1
+            t.add_row([s, nft_sum, round(hive_sum, 3)])
+        print(t.get_string(sortby=("est. HIVE sum"), reversesort=True))
 
 
 @cli.command()
 @click.argument('symbol', nargs=1)
 @click.argument('nft_ids', nargs=-1)
 @click.option('--account', '-a', help='Buy with this account (defaults to "default_account")')
-@click.option('--market_account', '-m', help='BMarket account which will receive the fee (defaults to "nftmarket")', default="nftmarket")
+@click.option('--market_account', '-m', help='Market account which will receive the fee (defaults to "nftmarket")', default="nftmarket")
 @click.option('--yes', '-y', help='Answer yes to all questions', is_flag=True, default=False)
 def nftbuy(symbol, nft_ids, account, market_account, yes):
     """Buy nfts from the market
@@ -1180,7 +1371,7 @@ def nftsell(symbol, nft_ids, price, price_symbol, account, fee, yes):
     for _id in nft_ids:
         obj = nft.get_id(int(_id))
         t.add_row([obj["_id"], obj["account"], obj["properties"]])
-    print("Create a sell order for the following nfts:")
+    print("Create a sell order for %.3f %s with a %.2f %% fee on:" % (float(price), price_symbol, fee/100))
     print(t)
     if not yes:
         ret = input("continue [y/n]?")
