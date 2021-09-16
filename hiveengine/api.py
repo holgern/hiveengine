@@ -2,13 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-import sys
-from datetime import datetime, timedelta, date
-import time
-import json
 import requests
-from timeit import default_timer as timer
-import logging
 from .rpc import RPC
 
 
@@ -27,10 +21,10 @@ class Api(object):
 
     def get_history(self, account, symbol, limit=1000, offset=0):
         """"Get the transaction history for an account and a token"""
-        response = requests.get("https://accounts.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
+        response = requests.get("https://history.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
         cnt2 = 0
         while response.status_code != 200 and cnt2 < 10:
-            response = requests.get("https://accounts.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
+            response = requests.get("https://history.hive-engine.com/accountHistory?account=%s&limit=%d&offset=%d&symbol=%s" % (account, limit, offset, symbol))
             cnt2 += 1
         return response.json()
 
@@ -96,7 +90,7 @@ class Api(object):
         cnt = 0
         result = []
         while last_result is not None and len(last_result) == limit or cnt == 0:
-            cnt += 1            
+            cnt += 1
             last_result = self.find(contract_name, table_name, query, limit=limit, offset=offset)
             if last_result is not None:
                 result += last_result
